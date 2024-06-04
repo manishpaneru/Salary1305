@@ -1,4 +1,4 @@
-use project;
+use salary;
 select 
   * 
 from 
@@ -425,3 +425,79 @@ Where
   ) 
 GROUP BY 
   Gender;
+select 
+  * 
+from 
+  salary;
+-- Now let's create Some CTEs to understand this data properly because Basic data cleaning project is over -- 
+WITH RankedSalaries AS (
+  SELECT 
+    *, 
+    PERCENT_RANK() OVER (
+      PARTITION BY `Job` 
+      ORDER BY 
+        Salary
+    ) AS PercentileRank 
+  FROM 
+    salary
+) 
+SELECT 
+  Age, 
+  Gender, 
+  `education` AS Education, 
+  `job` AS job, 
+  `experience` AS experience, 
+  Salary, 
+  PercentileRank 
+FROM 
+  RankedSalaries;
+-- This code will create a CTE that holds data of What job , education and gender fall under which percentile of earnings according to the data -- 
+-- ---------------------------------------------------------------------------------------------------------------------------------------------------------
+WITH ExperienceBrackets AS (
+  SELECT 
+    *, 
+    CASE WHEN `experience` BETWEEN 0 
+    AND 5 THEN '0-5 Years' WHEN `experience` BETWEEN 6 
+    AND 10 THEN '6-10 Years' WHEN `experience` BETWEEN 11 
+    AND 15 THEN '11-15 Years' ELSE '15+ Years' END AS ExperienceBracket 
+  FROM 
+    salary
+), 
+-- THis will create a CTE that will give us an idea of how experience in different fields and with different education yeild salaries-- 
+-- THis will also show us average salary per job per experience bracket and also previous age group average salary and also salary growth with exerience-- 
+AverageSalaries AS (
+  SELECT 
+    `job` AS Job, 
+    ExperienceBracket, 
+    AVG(Salary) AS AvgSalary 
+  FROM 
+    ExperienceBrackets 
+  GROUP BY 
+    Job, 
+    ExperienceBracket
+) 
+SELECT 
+  Job, 
+  ExperienceBracket, 
+  AvgSalary, 
+  LAG(AvgSalary) OVER (
+    PARTITION BY Job 
+    ORDER BY 
+      ExperienceBracket
+  ) AS PrevAvgSalary, 
+  ROUND(
+    100 * (
+      AvgSalary - LAG(AvgSalary) OVER (
+        PARTITION BY Job 
+        ORDER BY 
+          ExperienceBracket
+      )
+    ) / LAG(AvgSalary) OVER (
+      PARTITION BY Job 
+      ORDER BY 
+        ExperienceBracket
+    ), 
+    2
+  ) AS SalaryGrowthPercentage 
+FROM 
+  AverageSalaries;
